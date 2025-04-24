@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>test.calendar.exporter</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>echo "Test run at $(date)" >> /tmp/test-mac-calendar-exporter.log</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>15</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>30</integer>
+        </dict>
+        <dict>
+            <key>Minute</key>
+            <integer>45</integer>
+        </dict>
+    </array>
+    <key>StandardErrorPath</key>
+    <string>/tmp/test-mac-calendar-exporter.err</string>
+    <key>StandardOutPath</key>
+    <string>/tmp/test-mac-calendar-exporter.out</string>
+</dict>
+</plist>
