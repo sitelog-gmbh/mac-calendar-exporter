@@ -37,9 +37,12 @@ We're using a rolling window approach, exporting events from today plus a config
 ### ICS File Format
 The ICS file includes:
 - Proper timezone information for Europe/Berlin
-- Event titles and times
+- Event titles and times (with optional length limiting to avoid line breaks)
 - Optional descriptions and locations (disabled by default)
 - Calendar categorization
+
+### Title Length Limiting
+We've implemented title length limiting with a default of 36 characters to prevent line breaks in Home Assistant dashboards. This ensures a clean display while still providing enough context for each event. When titles exceed the limit, they're truncated and an ellipsis is added for clarity.
 
 ## Next Steps
 1. Consider adding filtering options for events

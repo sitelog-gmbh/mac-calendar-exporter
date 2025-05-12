@@ -55,6 +55,7 @@ Edit the `.env` file to customize your settings:
 | `ICS_FILE` | Path to output ICS file | `./calendar_export.ics` | No |
 | `ICS_CALENDAR_NAME` | Name of the calendar in the ICS file | `Exported Calendar` | No |
 | `INCLUDE_DETAILS` | Include event descriptions and locations | `false` | No |
+| `TITLE_LENGTH_LIMIT` | Maximum length for event titles (0 for unlimited) | `36` | No |
 | `ENABLE_SFTP` | Enable SFTP upload | `false` | No |
 | `SFTP_HOST` | SFTP server hostname | | Yes, if SFTP enabled |
 | `SFTP_PORT` | SFTP server port | `22` | No |

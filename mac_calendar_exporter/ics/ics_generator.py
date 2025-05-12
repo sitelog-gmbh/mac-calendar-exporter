@@ -28,7 +28,8 @@ class ICSGenerator:
         events: List[Dict], 
         calendar_name: str = "Exported Calendar",
         output_file: Optional[str] = None,
-        include_details: bool = False
+        include_details: bool = False,
+        title_length_limit: int = 36  # Default to 50 characters
     ) -> str:
         """
         Generate an ICS file from the provided events.
@@ -59,7 +60,7 @@ class ICSGenerator:
         
         # Add events to calendar
         for event_data in events:
-            event = self._create_event_from_dict(event_data, include_details)
+            event = self._create_event_from_dict(event_data, include_details, title_length_limit)
             if event:
                 cal.add_component(event)
         
@@ -72,16 +73,52 @@ class ICSGenerator:
         with open(output_file, 'wb') as f:
             f.write(cal.to_ical())
         
+        # Post-process the file to ensure titles are correctly truncated
+        if title_length_limit > 0:
+            self._post_process_ics_file(output_file, title_length_limit)
+        
         logger.info(f"ICS file generated at {output_file}")
         return output_file
+    
+    def _post_process_ics_file(self, file_path: str, title_length_limit: int) -> None:
+        """
+        Post-process the ICS file to ensure titles are correctly truncated.
+        
+        Args:
+            file_path: Path to the ICS file
+            title_length_limit: Maximum length for event titles
+        """
+        try:
+            # Read the file with explicit UTF-8 encoding
+            with open(file_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            
+            # Process lines
+            for i, line in enumerate(lines):
+                if line.startswith('SUMMARY:'):
+                    title = line[len('SUMMARY:'):].strip()
+                    if len(title) > title_length_limit:
+                        # Use three periods for ellipsis to ensure compatibility
+                        truncated = title[:title_length_limit] + '...'
+                        lines[i] = f'SUMMARY:{truncated}\n'
+                        logger.debug(f"Post-processing truncated: '{title}' → '{truncated}'")
+            
+            # Write back to file with explicit UTF-8 encoding
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.writelines(lines)
+                
+            logger.info(f"Post-processed {file_path} to ensure title lengths are limited to {title_length_limit} characters")
+        except Exception as e:
+            logger.error(f"Error post-processing ICS file: {e}")
 
-    def _create_event_from_dict(self, event_data: Dict, include_details: bool = False) -> Optional[Event]:
+    def _create_event_from_dict(self, event_data: Dict, include_details: bool = False, title_length_limit: int = 0) -> Optional[Event]:
         """
         Create an iCalendar Event from an event dictionary.
         
         Args:
             event_data: Dictionary with event data from MacOSCalendarAccess
             include_details: Whether to include description and location details
+            title_length_limit: Maximum length for event titles (0 for unlimited)
             
         Returns:
             Optional[Event]: iCalendar Event object or None if creation fails
@@ -90,7 +127,21 @@ class ICSGenerator:
             event = Event()
             
             # Basic event properties
-            event.add('summary', event_data['title'])
+            title = event_data['title']
+            original_title = title
+            
+            # Apply title length limit if specified
+            if title_length_limit > 0 and len(title) > title_length_limit:
+                truncated_title = title[:title_length_limit] + '…'  # Using proper ellipsis character
+                logger.info(f"Truncated title: '{original_title}' → '{truncated_title}'")
+                
+                # Replace the title in the event_data to ensure consistency
+                event_data['title'] = truncated_title
+                
+                # Use the truncated title directly
+                event.add('summary', truncated_title)
+            else:
+                event.add('summary', title)
             event.add('uid', event_data['event_id'])
             
             # Handle start and end dates

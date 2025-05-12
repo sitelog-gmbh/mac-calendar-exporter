@@ -13,6 +13,7 @@
 - ✅ Setup script with interactive and non-interactive modes
 - ✅ Documentation and README
 - ✅ Code cleanup (removed unused calendar implementations)
+- ✅ Title length limiting to prevent line breaks in Home Assistant dashboards
 
 ## Future Enhancements
 - Calendar event filtering options

@@ -115,11 +115,13 @@ class MacCalendarExporter:
                 ics_generator = ICSGenerator()
                 calendar_name = self.config.get('ics_calendar_name', 'Exported Calendar')
                 include_details = self.config.get('include_details', False)
+                title_length_limit = self.config.get('title_length_limit', 36)
                 ics_file = ics_generator.generate_ics(
                     events=events,
                     calendar_name=calendar_name,
                     output_file=output_file,
-                    include_details=include_details
+                    include_details=include_details,
+                    title_length_limit=title_length_limit
                 )
                 self.logger.info(f"Generated ICS file: {ics_file}")
                 return ics_file

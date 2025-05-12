@@ -42,55 +42,55 @@ fi
 echo -e "${GREEN}Python 3 found.${NC}"
 python3 --version
 
-# Check calendar access tools
-echo -e "\n${BLUE}Checking calendar access tools...${NC}"
+# Swift's EventKit is now used for calendar access, external tools are no longer required
 
-# Check mcal
-if command_exists mcal; then
-  echo -e "${GREEN}mcal found.${NC} $(mcal --version 2>&1 | head -n 1)"
-else
-  echo -e "${YELLOW}mcal not found. Consider installing it with 'brew install mcal'${NC}"
-  echo -e "${YELLOW}Setting up mock data for now...${NC}"
-  
-  # Check if mock mode is set in config
-  if [ -f "$CONFIG_FILE" ]; then
-    if ! grep -q "CALENDAR_TYPE=mock" "$CONFIG_FILE"; then
-      echo "CALENDAR_TYPE=mock" >> "$CONFIG_FILE"
-      echo -e "${YELLOW}Added CALENDAR_TYPE=mock to $CONFIG_FILE${NC}"
-    fi
-  fi
+# Create a new virtual environment
+echo -e "\n${BLUE}Creating virtual environment...${NC}"
+# Remove old venv if it exists
+if [ -d "$VENV_DIR" ]; then
+  echo -e "${YELLOW}Removing old virtual environment...${NC}"
+  rm -rf "$VENV_DIR"
 fi
 
-# Check icalBuddy
-if command_exists icalBuddy; then
-  echo -e "${GREEN}icalBuddy found.${NC} $(icalBuddy -V)"
-else
-  echo -e "${YELLOW}icalBuddy not found. Consider installing it with 'brew install icalbuddy'${NC}"
-fi
-
-# Create or update virtual environment
-if [ ! -d "$VENV_DIR" ]; then
-  echo -e "\n${BLUE}Creating virtual environment...${NC}"
-  python3 -m venv "$VENV_DIR"
-else
-  echo -e "\n${GREEN}Virtual environment already exists.${NC}"
-fi
+# Create new environment
+python3 -m venv "$VENV_DIR"
 
 # Activate virtual environment
 echo -e "${BLUE}Activating virtual environment...${NC}"
 source "$VENV_DIR/bin/activate"
 
-# Install or upgrade pip
-echo -e "\n${BLUE}Upgrading pip...${NC}"
-pip install --upgrade pip
-
-# Install requirements
-echo -e "\n${BLUE}Installing dependencies...${NC}"
-pip install -r requirements.txt
-
-# Install the package in development mode
-echo -e "\n${BLUE}Installing macOS Calendar Exporter in development mode...${NC}"
-pip install -e .
+# Verify activation
+PYTHON_PATH=$(which python)
+if [[ "$PYTHON_PATH" == *"$VENV_DIR"* ]]; then
+  echo -e "${GREEN}Virtual environment activated: $PYTHON_PATH${NC}"
+  
+  # Install or upgrade pip
+  echo -e "\n${BLUE}Upgrading pip...${NC}"
+  pip install --upgrade pip
+  
+  # Install requirements
+  echo -e "\n${BLUE}Installing dependencies...${NC}"
+  pip install -r requirements.txt
+  
+  # Install the package in development mode
+  echo -e "\n${BLUE}Installing macOS Calendar Exporter in development mode...${NC}"
+  pip install -e .
+else
+  echo -e "${RED}Failed to activate virtual environment properly.${NC}"
+  echo -e "${YELLOW}Trying fallback method...${NC}"
+  
+  # Fallback to direct paths
+  echo -e "\n${BLUE}Upgrading pip...${NC}"
+  "$VENV_DIR/bin/python" -m pip install --upgrade pip
+  
+  # Install requirements
+  echo -e "\n${BLUE}Installing dependencies...${NC}"
+  "$VENV_DIR/bin/python" -m pip install -r requirements.txt
+  
+  # Install the package in development mode
+  echo -e "\n${BLUE}Installing macOS Calendar Exporter in development mode...${NC}"
+  "$VENV_DIR/bin/python" -m pip install -e .
+fi
 
 # Check for config file
 if [ ! -f "$CONFIG_FILE" ]; then
@@ -102,11 +102,10 @@ if [ ! -f "$CONFIG_FILE" ]; then
     echo -e "${RED}Error: .env.example not found.${NC}"
     touch "$CONFIG_FILE"
     echo "# macOS Calendar Exporter Configuration" > "$CONFIG_FILE"
-    echo "CALENDAR_TYPE=mcal" >> "$CONFIG_FILE" 
     echo "CALENDAR_NAMES=Calendar" >> "$CONFIG_FILE"
     echo "DAYS_AHEAD=30" >> "$CONFIG_FILE"
     echo "ICS_FILE=./calendar_export.ics" >> "$CONFIG_FILE"
-    echo "USE_MOCK_ON_FAILURE=true" >> "$CONFIG_FILE"
+    echo "TITLE_LENGTH_LIMIT=36" >> "$CONFIG_FILE"
     echo "ENABLE_SFTP=false" >> "$CONFIG_FILE"
     echo -e "${GREEN}Created basic $CONFIG_FILE. Please edit it with your settings.${NC}"
   fi
@@ -116,7 +115,7 @@ fi
 
 # Run calendar access test
 echo -e "\n${BLUE}Testing calendar access...${NC}"
-python -c "
+"$VENV_DIR/bin/python" -c "
 try:
     from mac_calendar_exporter.main import MacCalendarExporter
     exporter = MacCalendarExporter()
@@ -152,7 +151,7 @@ fi
 
 if [ "$run_it" = true ]; then
   echo -e "\n${BLUE}Running macOS Calendar Exporter...${NC}"
-  python -m mac_calendar_exporter.main
+  "$VENV_DIR/bin/python" -m mac_calendar_exporter.main
   
   # Check exit status
   if [ $? -eq 0 ]; then

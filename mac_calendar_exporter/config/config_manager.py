@@ -58,7 +58,8 @@ class ConfigManager:
                 "names": [],  # List of calendar names to export (empty means all)
                 "days_ahead": 30,  # Number of days ahead to export
                 "output_file": os.path.expanduser("~/calendar_export.ics"),
-                "output_name": "Exported Calendar"
+                "output_name": "Exported Calendar",
+                "title_length_limit": 36  # Maximum length of event titles, 0 for unlimited
             },
             "sftp": {
                 "hostname": "",
@@ -194,6 +195,13 @@ class ConfigManager:
         # Include event details
         if os.environ.get("INCLUDE_DETAILS"):
             self.config["include_details"] = os.environ.get("INCLUDE_DETAILS").lower() in ('true', 'yes', '1')
+            
+        # Title length limit
+        if os.environ.get("TITLE_LENGTH_LIMIT"):
+            try:
+                self.config["title_length_limit"] = int(os.environ.get("TITLE_LENGTH_LIMIT"))
+            except ValueError:
+                pass
         
         # Enable SFTP
         if os.environ.get("ENABLE_SFTP"):

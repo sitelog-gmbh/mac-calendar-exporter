@@ -77,11 +77,16 @@ def cli(ctx, debug, config):
     help="Name for the calendar in the ICS file"
 )
 @click.option(
+    "--title-length", "-t",
+    type=int,
+    help="Maximum length for event titles (0 for unlimited, default: 32)"
+)
+@click.option(
     "--no-upload", is_flag=True,
     help="Skip uploading to SFTP server"
 )
 @click.pass_context
-def export_calendar(ctx, calendar, days, output, name, no_upload):
+def export_calendar(ctx, calendar, days, output, name, title_length, no_upload):
     """Export calendar entries to ICS file and upload to SFTP server."""
     config_path = ctx.obj.get("config_path")
     
@@ -101,6 +106,8 @@ def export_calendar(ctx, calendar, days, output, name, no_upload):
             exporter.config['ics_file'] = output
         if name:
             exporter.config['ics_calendar_name'] = name
+        if title_length is not None:
+            exporter.config['title_length_limit'] = title_length
         if no_upload:
             exporter.config['enable_sftp'] = False
             
@@ -209,8 +216,14 @@ def configure_sftp(ctx, host, port, user, key_file, remote_path, password):
     prompt="Calendar name in ICS file",
     default="Exported Calendar"
 )
+@click.option(
+    "--title-length", "-t",
+    type=int,
+    prompt="Maximum length for event titles (0 for unlimited)",
+    default=32
+)
 @click.pass_context
-def configure_calendar(ctx, calendar, days, output, name):
+def configure_calendar(ctx, calendar, days, output, name, title_length):
     """Configure calendar export settings."""
     config_manager = ctx.obj.get("config_manager")
     
@@ -219,6 +232,7 @@ def configure_calendar(ctx, calendar, days, output, name):
     config_manager.config["calendar"]["days_ahead"] = days
     config_manager.config["calendar"]["output_file"] = os.path.expanduser(output)
     config_manager.config["calendar"]["output_name"] = name
+    config_manager.config["calendar"]["title_length_limit"] = title_length
     
     # Save configuration
     result = config_manager.save_config()
