@@ -81,14 +81,17 @@ class MacCalendarExporter:
             # Get calendar configuration
             calendar_names = self.config.get('calendar_names', ['Calendar'])
             days_ahead = self.config.get('days_ahead', 30)
+            days_behind = self.config.get('days_behind', 30)
             output_file = self.config.get('ics_file', './calendar_export.ics')
             
-            # Calculate date range
-            start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = start_date + timedelta(days=days_ahead)
+            # Calculate date range - now includes past events
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = today - timedelta(days=days_behind)
+            end_date = today + timedelta(days=days_ahead)
             
             self.logger.info(f"Exporting events from {start_date.strftime('%Y-%m-%d')} to "
-                           f"{end_date.strftime('%Y-%m-%d')} for calendars: {', '.join(calendar_names)}")
+                           f"{end_date.strftime('%Y-%m-%d')} ({days_behind} days behind, {days_ahead} days ahead) "
+                           f"for calendars: {', '.join(calendar_names)}")
             
             # Get events
             events = []

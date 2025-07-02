@@ -57,6 +57,7 @@ class ConfigManager:
             "calendar": {
                 "names": [],  # List of calendar names to export (empty means all)
                 "days_ahead": 30,  # Number of days ahead to export
+                "days_behind": 30,  # Number of days behind (past) to export
                 "output_file": os.path.expanduser("~/calendar_export.ics"),
                 "output_name": "Exported Calendar",
                 "title_length_limit": 36  # Maximum length of event titles, 0 for unlimited
@@ -173,6 +174,13 @@ class ConfigManager:
         elif os.environ.get("CALDAV_DAYS_AHEAD"):  # Backward compatibility
             try:
                 self.config["days_ahead"] = int(os.environ.get("CALDAV_DAYS_AHEAD"))
+            except ValueError:
+                pass
+        
+        # Days behind (new feature)
+        if os.environ.get("DAYS_BEHIND"):
+            try:
+                self.config["days_behind"] = int(os.environ.get("DAYS_BEHIND"))
             except ValueError:
                 pass
         
