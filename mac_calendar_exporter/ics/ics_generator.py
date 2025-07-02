@@ -142,7 +142,18 @@ class ICSGenerator:
                 event.add('summary', truncated_title)
             else:
                 event.add('summary', title)
-            event.add('uid', event_data['event_id'])
+            
+            # Generate unique UID for each event occurrence
+            # This solves the issue with recurring events having the same UID
+            original_uid = event_data['event_id']
+            
+            # Create a unique UID by combining the original event ID with start date/time
+            # This ensures each occurrence of a recurring event gets a unique UID
+            start_date_str = event_data['start_date'].replace(' ', 'T').replace(':', '')
+            unique_uid = f"{original_uid}-{start_date_str}"
+            
+            event.add('uid', unique_uid)
+            logger.debug(f"Generated unique UID: {unique_uid} for event: {title}")
             
             # Handle start and end dates
             try:
