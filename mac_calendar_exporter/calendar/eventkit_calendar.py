@@ -23,16 +23,13 @@ class EventKitCalendarAccess:
     def __init__(self):
         """Initialize the EventKitCalendarAccess class."""
         logger.info("Initializing EventKit calendar access")
-        self.script_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            "eventkit_calendar.swift"
-        )
-        logger.info(f"Using EventKit script at: {self.script_path}")
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        swift_script = os.path.join(script_dir, "eventkit_calendar.swift")
+        binary_path = os.path.join(script_dir, "eventkit_calendar")
         
-        # Ensure script is executable
-        if not os.access(self.script_path, os.X_OK):
-            os.chmod(self.script_path, 0o755)
-            logger.info("Set execute permissions on EventKit script")
+        # Compile Swift script to binary if binary doesn't exist or is older than script
+        self.script_path = self._ensure_compiled_binary(swift_script, binary_path)
+        logger.info(f"Using EventKit binary at: {self.script_path}")
 
     def list_calendars(self) -> List[Dict[str, str]]:
         """
@@ -146,6 +143,63 @@ class EventKitCalendarAccess:
             logger.error(f"Failed to get events using EventKit: {e}")
             return []
             
+    def _ensure_compiled_binary(self, swift_script: str, binary_path: str) -> str:
+        """
+        Compile Swift script to binary if needed.
+        
+        Args:
+            swift_script: Path to Swift source file
+            binary_path: Path where binary should be created
+            
+        Returns:
+            str: Path to the binary (or script if compilation fails)
+        """
+        try:
+            # Check if binary exists and is newer than script
+            if os.path.exists(binary_path):
+                script_mtime = os.path.getmtime(swift_script)
+                binary_mtime = os.path.getmtime(binary_path)
+                if binary_mtime >= script_mtime:
+                    # Binary is up to date
+                    if os.access(binary_path, os.X_OK):
+                        return binary_path
+                    else:
+                        os.chmod(binary_path, 0o755)
+                        return binary_path
+            
+            # Need to compile
+            logger.info("Compiling Swift script to binary for better permission handling")
+            result = subprocess.run(
+                ["swiftc", "-o", binary_path, swift_script],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if result.returncode == 0:
+                os.chmod(binary_path, 0o755)
+                logger.info(f"Successfully compiled Swift script to {binary_path}")
+                return binary_path
+            else:
+                error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                logger.warning(f"Failed to compile Swift script: {error_msg}")
+                logger.warning("Falling back to interpreted Swift script")
+                # Fall back to script
+                if not os.access(swift_script, os.X_OK):
+                    os.chmod(swift_script, 0o755)
+                return swift_script
+                
+        except subprocess.TimeoutExpired:
+            logger.warning("Swift compilation timed out, falling back to script")
+            if not os.access(swift_script, os.X_OK):
+                os.chmod(swift_script, 0o755)
+            return swift_script
+        except Exception as e:
+            logger.warning(f"Failed to compile Swift script: {e}, falling back to script")
+            if not os.access(swift_script, os.X_OK):
+                os.chmod(swift_script, 0o755)
+            return swift_script
+
     def _run_script(self, args: List[str]) -> Optional[Dict]:
         """
         Run the Swift script with provided arguments.
@@ -157,20 +211,25 @@ class EventKitCalendarAccess:
             Optional[Dict]: Parsed JSON output from the script, or None if failed
         """
         try:
-            # Use explicit Swift path to ensure it works in cron environment
-            swift_path = "/usr/bin/swift"
-            if not os.path.exists(swift_path):
-                # Try alternative path
-                swift_path = subprocess.run(
-                    ["which", "swift"],
-                    capture_output=True,
-                    text=True
-                ).stdout.strip()
-                if not swift_path:
-                    logger.error("Swift not found in PATH")
-                    return None
-            
-            cmd = [swift_path, self.script_path] + args
+            # If script_path is a binary, run it directly
+            # If it's a Swift script, run it with swift
+            if self.script_path.endswith('.swift'):
+                # Use explicit Swift path to ensure it works in cron environment
+                swift_path = "/usr/bin/swift"
+                if not os.path.exists(swift_path):
+                    # Try alternative path
+                    swift_path = subprocess.run(
+                        ["which", "swift"],
+                        capture_output=True,
+                        text=True
+                    ).stdout.strip()
+                    if not swift_path:
+                        logger.error("Swift not found in PATH")
+                        return None
+                cmd = [swift_path, self.script_path] + args
+            else:
+                # It's a compiled binary, run it directly
+                cmd = [self.script_path] + args
             
             # Execute the Swift script
             logger.debug(f"Running: {' '.join(cmd)}")
