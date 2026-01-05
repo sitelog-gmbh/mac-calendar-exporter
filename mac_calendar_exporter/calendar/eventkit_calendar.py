@@ -157,7 +157,20 @@ class EventKitCalendarAccess:
             Optional[Dict]: Parsed JSON output from the script, or None if failed
         """
         try:
-            cmd = [self.script_path] + args
+            # Use explicit Swift path to ensure it works in cron environment
+            swift_path = "/usr/bin/swift"
+            if not os.path.exists(swift_path):
+                # Try alternative path
+                swift_path = subprocess.run(
+                    ["which", "swift"],
+                    capture_output=True,
+                    text=True
+                ).stdout.strip()
+                if not swift_path:
+                    logger.error("Swift not found in PATH")
+                    return None
+            
+            cmd = [swift_path, self.script_path] + args
             
             # Execute the Swift script
             logger.debug(f"Running: {' '.join(cmd)}")
@@ -165,23 +178,38 @@ class EventKitCalendarAccess:
                 cmd,
                 capture_output=True,
                 text=True,
-                check=False
+                check=False,
+                timeout=30  # Add timeout to prevent hanging
             )
             
             if result.returncode != 0:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
                 logger.error(f"Swift script returned error code {result.returncode}: {error_msg}")
+                if result.stdout:
+                    logger.error(f"Swift script stdout: {result.stdout[:500]}")  # Log first 500 chars
+                return None
+            
+            # Check if stdout is empty
+            if not result.stdout.strip():
+                logger.error("Swift script returned empty output")
+                if result.stderr:
+                    logger.error(f"Swift script stderr: {result.stderr}")
                 return None
             
             # Parse JSON output
             try:
                 output = json.loads(result.stdout)
                 return output
-            except json.JSONDecodeError:
-                logger.error("Failed to parse JSON output from Swift script")
-                logger.debug(f"Raw output: {result.stdout}")
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON output from Swift script: {e}")
+                logger.error(f"Raw stdout (first 1000 chars): {result.stdout[:1000]}")
+                if result.stderr:
+                    logger.error(f"Raw stderr: {result.stderr}")
                 return None
                 
+        except subprocess.TimeoutExpired:
+            logger.error("Swift script timed out after 30 seconds")
+            return None
         except Exception as e:
             logger.error(f"Failed to run Swift script: {e}")
             return None

@@ -155,7 +155,24 @@ eventStore.requestAccess(to: .event) { (granted, error) in
             print("Error: \(error.localizedDescription)")
         }
     } else {
-        print("Error: Access denied or error: \(String(describing: error))")
+        // Output error as JSON for better parsing
+        var errorDict: [String: Any] = [
+            "error": "Access denied to calendar",
+            "message": error?.localizedDescription ?? "Unknown error"
+        ]
+        if let error = error {
+            errorDict["error_code"] = (error as NSError).code
+            errorDict["error_domain"] = (error as NSError).domain
+        }
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: errorDict, options: [])
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                print(jsonString)
+            }
+        } catch {
+            print("{\"error\": \"Access denied or error: \(String(describing: error))\"}")
+        }
     }
     
     group.leave()
