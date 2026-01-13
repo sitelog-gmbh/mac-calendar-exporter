@@ -142,6 +142,122 @@ class EventKitCalendarAccess:
         except Exception as e:
             logger.error(f"Failed to get events using EventKit: {e}")
             return []
+    
+    def delete_calendar_events(
+        self,
+        calendar_name: str,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> bool:
+        """
+        Delete all events from a specified calendar within the given date range.
+        
+        Args:
+            calendar_name: Name of the calendar to delete events from
+            start_date: Start date for deletion range. If None, today is used.
+            end_date: End date for deletion range. If None, 30 days from start is used.
+            
+        Returns:
+            bool: True if deletion succeeded, False otherwise
+        """
+        if start_date is None:
+            start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            
+        if end_date is None:
+            end_date = start_date + timedelta(days=30)
+        
+        try:
+            logger.info(f"Deleting events from calendar '{calendar_name}' "
+                       f"from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+            
+            # Prepare arguments for the Swift script
+            args = [
+                "--delete-events",
+                "--calendar", calendar_name,
+                "--start-date", start_date.strftime("%Y-%m-%d"),
+                "--end-date", end_date.strftime("%Y-%m-%d")
+            ]
+            
+            result = self._run_script(args)
+            
+            if not result:
+                logger.error("No result from delete operation")
+                return False
+                
+            if "error" in result:
+                logger.error(f"Failed to delete events: {result['error']}")
+                return False
+            
+            if result.get("success"):
+                deleted_count = result.get("deleted_count", 0)
+                logger.info(f"Successfully deleted {deleted_count} events from calendar '{calendar_name}'")
+                
+                if "errors" in result and result["errors"]:
+                    logger.warning(f"Some events had errors during deletion: {result['errors']}")
+                
+                return True
+            else:
+                logger.error("Delete operation did not return success")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to delete calendar events: {e}")
+            return False
+    
+    def import_ics_to_calendar(
+        self,
+        calendar_name: str,
+        ics_file_path: str
+    ) -> bool:
+        """
+        Import events from an ICS file into a specified calendar.
+        
+        Args:
+            calendar_name: Name of the calendar to import events into
+            ics_file_path: Path to the ICS file to import
+            
+        Returns:
+            bool: True if import succeeded, False otherwise
+        """
+        if not os.path.exists(ics_file_path):
+            logger.error(f"ICS file does not exist: {ics_file_path}")
+            return False
+        
+        try:
+            logger.info(f"Importing events from '{ics_file_path}' into calendar '{calendar_name}'")
+            
+            # Prepare arguments for the Swift script
+            args = [
+                "--import-ics",
+                "--calendar", calendar_name,
+                "--ics-file", ics_file_path
+            ]
+            
+            result = self._run_script(args)
+            
+            if not result:
+                logger.error("No result from import operation")
+                return False
+                
+            if "error" in result:
+                logger.error(f"Failed to import events: {result['error']}")
+                return False
+            
+            if result.get("success"):
+                imported_count = result.get("imported_count", 0)
+                logger.info(f"Successfully imported {imported_count} events into calendar '{calendar_name}'")
+                
+                if "errors" in result and result["errors"]:
+                    logger.warning(f"Some events had errors during import: {result['errors']}")
+                
+                return True
+            else:
+                logger.error("Import operation did not return success")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to import ICS file: {e}")
+            return False
             
     def _ensure_compiled_binary(self, swift_script: str, binary_path: str) -> str:
         """

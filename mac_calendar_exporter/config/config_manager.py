@@ -60,7 +60,8 @@ class ConfigManager:
                 "days_behind": 30,  # Number of days behind (past) to export
                 "output_file": os.path.expanduser("~/calendar_export.ics"),
                 "output_name": "Exported Calendar",
-                "title_length_limit": 36  # Maximum length of event titles, 0 for unlimited
+                "title_length_limit": 36,  # Maximum length of event titles, 0 for unlimited
+                "local_import_calendar": ""  # Local calendar name for direct import
             },
             "sftp": {
                 "hostname": "",
@@ -214,6 +215,10 @@ class ConfigManager:
         # Enable SFTP
         if os.environ.get("ENABLE_SFTP"):
             self.config["enable_sftp"] = os.environ.get("ENABLE_SFTP").lower() in ('true', 'yes', '1')
+        
+        # Local import calendar
+        if os.environ.get("LOCAL_IMPORT_CALENDAR"):
+            self.config["local_import_calendar"] = os.environ.get("LOCAL_IMPORT_CALENDAR")
         
         # SFTP settings
         if os.environ.get("SFTP_HOST"):

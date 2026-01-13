@@ -195,10 +195,78 @@ class MacCalendarExporter:
         except Exception as e:
             self.logger.error(f"Failed to upload to SFTP: {e}", exc_info=True)
             return False
+    
+    def import_to_local_calendar(self, file_path: str):
+        """
+        Import ICS file to a local/iCloud macOS calendar.
+        
+        Args:
+            file_path: Path to the ICS file to import
+            
+        Returns:
+            bool: True if import succeeded, False otherwise
+        """
+        if not file_path or not os.path.exists(file_path):
+            self.logger.error(f"File does not exist: {file_path}")
+            return False
+        
+        try:
+            # Get local calendar name from config
+            local_calendar = self.config.get('local_import_calendar', '')
+            
+            if not local_calendar:
+                self.logger.error("Local import calendar name not configured")
+                return False
+            
+            self.logger.info(f"Importing to local calendar: {local_calendar}")
+            
+            # Get calendar accessor
+            calendar_accessor = self._get_calendar_accessor()
+            
+            if calendar_accessor is None:
+                self.logger.error("Failed to initialize calendar accessor for local import")
+                return False
+            
+            # Calculate date range for deletion (same as export range)
+            days_ahead = self.config.get('days_ahead', 30)
+            days_behind = self.config.get('days_behind', 30)
+            today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = today - timedelta(days=days_behind)
+            end_date = today + timedelta(days=days_ahead)
+            
+            # First, delete existing events in the date range
+            self.logger.info(f"Deleting existing events from {start_date.strftime('%Y-%m-%d')} "
+                           f"to {end_date.strftime('%Y-%m-%d')}")
+            delete_success = calendar_accessor.delete_calendar_events(
+                calendar_name=local_calendar,
+                start_date=start_date,
+                end_date=end_date
+            )
+            
+            if not delete_success:
+                self.logger.warning("Failed to delete existing events, continuing with import anyway")
+            
+            # Import new events from ICS file
+            self.logger.info(f"Importing events from {file_path}")
+            import_success = calendar_accessor.import_ics_to_calendar(
+                calendar_name=local_calendar,
+                ics_file_path=file_path
+            )
+            
+            if import_success:
+                self.logger.info(f"Successfully imported events to calendar '{local_calendar}'")
+                return True
+            else:
+                self.logger.error("Failed to import events to local calendar")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Failed to import to local calendar: {e}", exc_info=True)
+            return False
             
     def run(self):
         """
-        Run the export and upload process.
+        Run the export and upload/import process.
         
         Returns:
             bool: True if the process succeeded, False otherwise
@@ -210,13 +278,27 @@ class MacCalendarExporter:
             if not ics_file:
                 self.logger.error("Calendar export failed")
                 return False
-                
-            # Check if SFTP upload is enabled
-            if self.config.get('enable_sftp', False):
+            
+            # Determine what to do with the exported file
+            sftp_enabled = self.config.get('enable_sftp', False)
+            local_import_calendar = self.config.get('local_import_calendar', '')
+            
+            # Check if SFTP is configured
+            sftp_config = self.config.get('sftp', {})
+            sftp_configured = bool(sftp_config.get('host') and sftp_config.get('username'))
+
+            if local_import_calendar:
+                # Import to local calendar
+                self.logger.info(f"Importing to local calendar '{local_import_calendar}'")
+                return self.import_to_local_calendar(ics_file)
+            elif sftp_enabled and sftp_configured:
                 # Upload ICS file to SFTP server
+                self.logger.info("SFTP is configured and enabled, uploading file")
                 return self.upload_to_sftp(ics_file)
             else:
-                self.logger.info("SFTP upload disabled")
+                # Neither SFTP nor local import configured
+                self.logger.info("Neither SFTP upload nor local import configured, file exported only")
+                self.logger.info(f"Exported file available at: {ics_file}")
                 return True
                 
         except Exception as e:

@@ -12,6 +12,7 @@ macOS Calendar Exporter is a Python tool specifically designed to export events 
 - **Timezone Support**: Properly handles european timezones (CET/CEST)
 - **Privacy Mode**: Only exports event titles and times by default (descriptions optional)
 - **SFTP Upload**: Automatically uploads to your specified server
+- **Local Calendar Import**: Directly import exported events back into a local/iCloud macOS calendar
 
 ## Installation
 
@@ -63,6 +64,7 @@ Edit the `.env` file to customize your settings:
 | `SFTP_PASSWORD` | SFTP password | | Yes, if no key file |
 | `SFTP_KEY_FILE` | Path to SSH private key for SFTP | | Yes, if no password |
 | `SFTP_REMOTE_PATH` | Remote path to upload file to (including filename) | | Yes, if SFTP enabled |
+| `LOCAL_IMPORT_CALENDAR` | Local macOS calendar name for direct import | | No |
 | `LOG_LEVEL` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) | `INFO` | No |
 
 ## Usage
@@ -194,6 +196,46 @@ If you encounter issues with the launchd job not running correctly:
 3. Check that the `WorkingDirectory` in the plist file is set to your actual project path
 4. Verify the Python virtual environment is properly set up and activated by the launcher script
 5. Try running the launcher script manually to test: `./examples/run-exporter.sh`
+
+## Local Calendar Import
+
+In addition to uploading to an SFTP server, you can import the exported events directly back into a local macOS calendar. This is useful for:
+
+- Creating a filtered/cleaned view of your calendars
+- Syncing events between different calendar sources
+- Creating a backup calendar with limited event details
+
+### Setup
+
+1. **Create a dedicated calendar** in the macOS Calendar app (e.g., "Exported Events")
+
+2. **Configure the local import calendar** in your `.env` file:
+
+```bash
+LOCAL_IMPORT_CALENDAR=Exported Events
+```
+
+3. **Disable SFTP** (or leave it unconfigured) if you only want local import:
+
+```bash
+ENABLE_SFTP=false
+```
+
+### How It Works
+
+When `LOCAL_IMPORT_CALENDAR` is configured and SFTP is not configured:
+
+1. The exporter extracts events from your source calendars
+2. Generates an ICS file with the exported events
+3. **Deletes all existing events** in the target calendar (within the configured date range)
+4. **Imports the new events** from the ICS file into the target calendar
+
+**Important Notes:**
+
+- The target calendar must exist in your macOS Calendar app
+- The target calendar must be writable (not read-only)
+- All events in the target calendar within the date range will be deleted before import
+- If both SFTP and local import are configured, SFTP takes priority
 
 ## Integration with Home Assistant
 
